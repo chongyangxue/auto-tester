@@ -1,5 +1,8 @@
 package com.sohu.sce.autotest.rest;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,7 +42,7 @@ public class AppRest{
 		Map<String, Object> resultMap = new HashMap<String, Object>(2);
 		resultMap.put("status", Constants.STATUS_CODE.SC_OK);
 		resultMap.put("messages", "ok");
-		resultMap.put("version", 1);
+		resultMap.put("version", 2);
 		return resultMap;
 	}
 
@@ -47,7 +50,7 @@ public class AppRest{
 		Map<String, Object> resultMap = new HashMap<String, Object>(2);
 		resultMap.put("status", errorCode);
 		resultMap.put("messages", errorMsg);
-		resultMap.put("version", 1);
+		resultMap.put("version", 2);
 		return resultMap;
 	}
 	
@@ -111,7 +114,8 @@ public class AppRest{
 	}
 	
 	@RequestMapping(value = "/check_redis", method = {RequestMethod.POST})
-	public @ResponseBody Map<String, Object> checkRedis(String url, String password){
+	public @ResponseBody Map<String, Object> checkRedis(@RequestParam String url,
+			@RequestParam String password){
 		HttpService.HttpResult result = httpService.syncHttpGet(url, null, null, 12000);
 		if (result.getCode() != HttpStatus.SC_OK) {
 			System.err.println("app: get redis nodes failed, " + result.getCode());
@@ -150,5 +154,27 @@ public class AppRest{
 		else{
 			return getFailResult("Redis set/get failed", 801);
 		}
+	}
+	
+	@RequestMapping(value = "/check_mysql", method = {RequestMethod.POST})
+	public @ResponseBody Map<String, Object> checkMysql(@RequestParam("dbName") String name,
+			@RequestParam String user, @RequestParam("dbPassword") String password, 
+			@RequestParam String master, @RequestParam String slave){
+		try{
+			Class.forName("com.mysql.jdbc.Driver");
+			String url = "jdbc:mysql://" + master + "/" + name;
+			Connection conn = DriverManager.getConnection(url, user, password);
+			Statement statement = conn.createStatement();
+			statement.execute("select 1");
+			
+			String url2 = "jdbc:mysql://" + slave + "/" + name;
+			Connection conn2 = DriverManager.getConnection(url2, user, password);
+			Statement statement2 = conn2.createStatement();
+			statement2.execute("select 2");
+		}catch (Exception e){
+			e.printStackTrace();
+			return getFailResult(e.getMessage(), 801);
+		}
+		return getSuccessResult();
 	}
 }
